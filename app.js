@@ -4,10 +4,16 @@ require('dotenv').config();
 app.use(express.json());
 app.use(express.urlencoded({extended: false}))
 
+
+var cookieParser = require('cookie-parser')
+app.use(cookieParser())
+
+
+
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-
+const auth = require('./middleware/auth');
 const User =require('./model/User');
 const connect = require('./config/database');
 connect();
@@ -49,7 +55,6 @@ app.post('/register' , async (req,res) => {
 
 app.post('/login', async (req,res) => {
     try {
-        console.log(req.body)
         const { email , password } = req.body ;
         if(!(email && password)) {
             res.status(400).send('Field is missing');
@@ -62,8 +67,21 @@ app.post('/login', async (req,res) => {
             if(checkPswd) {
                  const token = jwt.sign({user_id: user.id , email}, process.env.SECRET , {expiresIn: '2h'});
                  user.token = token ;
-                 user.password = undefined;
+                 user.password = undefined; // to hide password from response
                  res.status(200).json(user);
+
+                // if we go with cookies
+                // expires in 3 days
+                // const options = {
+                //     expires: new Date(Date.now() + 3*24*60*60* 1000) ,
+                //     httpOnly: true
+                // }
+                // res.status(200).cookie('token',token , options).json({
+                //     success: true,
+                //     token: token,
+                //     user
+                // })
+
             } else {
                  res.status(400).send('Email or password is incorrect');
             }
@@ -74,9 +92,17 @@ app.post('/login', async (req,res) => {
 })
 
 
-app.get('/dashboard',(req,res) => {
+app.get('/dashboard',auth,(req,res) => {
   res.send('Welcome to secret route');
 })
+
+
+// route for login if we go with cookie based authentication
+
+// app.post('/logout' ,(req,res) => {
+//      res.clearCookie('token');
+//      res.send('Cookie deleted');
+// })
 
 
 module.exports = app;
